@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Payoff Ledger</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Track your car loan or mortgage, log extra principal payments, and see the interest you have saved.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-title" content="Payoff">
+<meta name="theme-color" content="#0F3B2E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one phone-first column (max 720px). A dark "statement" band carries the balance; the savings card is the single loud moment. */
+:root{
+  --bg:#F3F5F1; --surface:#FFFFFF; --ink:#13201B; --muted:#5B6A63; --line:#DCE3DD;
+  --band:#0F3B2E; --band-ink:#EAF3EE; --band-muted:#9FBFB1;
+  --accent:#17855A; --accent-soft:#DDF0E6; --gold:#B7790C; --gold-soft:#FBF0DA;
+  --danger:#B23A2E; --plan:#6FA98E;
+  --f-display:"Familjen Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1412; --surface:#151F1B; --ink:#E4ECE7; --muted:#93A59C; --line:#26342E;
+  --band:#0A2A20; --band-ink:#E4F2EA; --band-muted:#86AE9C;
+  --accent:#3FBF86; --accent-soft:#163428; --gold:#E3AA3F; --gold-soft:#2E2412;
+  --danger:#E1705F; --plan:#4F8E72; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1412; --surface:#151F1B; --ink:#E4ECE7; --muted:#93A59C; --line:#26342E;
+  --band:#0A2A20; --band-ink:#E4F2EA; --band-muted:#86AE9C;
+  --accent:#3FBF86; --accent-soft:#163428; --gold:#E3AA3F; --gold-soft:#2E2412;
+  --danger:#E1705F; --plan:#4F8E72; color-scheme:dark}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+body{margin:0}
+html,body{background:var(--bg)}
+body{color:var(--ink);font:15px/1.5 var(--f-body)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--band)}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:1.15rem}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:.55rem .9rem;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--danger)}
+.btn:disabled{opacity:.5;cursor:default}
+
+/* top band */
+.band{background:var(--band);color:var(--band-ink)}
+.band .wrap{padding-block:14px 26px}
+.topbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.brand{font-family:var(--f-display);font-weight:700;font-size:1.05rem;letter-spacing:.01em;display:flex;gap:8px;align-items:center}
+.brand svg{width:20px;height:20px}
+.topbar select{background:transparent;border:1px solid color-mix(in srgb,var(--band-ink) 30%,transparent);border-radius:8px;padding:.4rem .6rem;color:var(--band-ink);max-width:220px}
+.topbar select option{color:#13201B;background:#fff}
+.topbar .btn{background:transparent;color:var(--band-ink);border-color:color-mix(in srgb,var(--band-ink) 30%,transparent)}
+.hero{margin-top:22px;display:grid;gap:6px}
+.hero .label{color:var(--band-muted)}
+.bal{font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,11vw,4rem);line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.hero-meta{display:flex;gap:18px;flex-wrap:wrap;color:var(--band-muted);font-size:.92rem}
+.hero-meta b{color:var(--band-ink);font-weight:600}
+.track{margin-top:16px;height:12px;border-radius:6px;background:color-mix(in srgb,var(--band-ink) 14%,transparent);position:relative;overflow:hidden}
+.track i{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:6px}
+.track-legend{display:flex;justify-content:space-between;font-size:.8rem;color:var(--band-muted);margin-top:6px}
+.example{margin-top:14px;font-size:.85rem;background:color-mix(in srgb,var(--gold) 22%,transparent);color:var(--band-ink);border-radius:8px;padding:.5rem .75rem;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.example button{background:var(--gold);border:0;color:#1d1405;border-radius:6px;padding:.35rem .7rem;font-weight:600}
+
+main.wrap{display:grid;gap:18px;padding-block:20px 48px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card > header{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+
+/* savings: the loud one */
+.save{background:var(--gold-soft);border-color:color-mix(in srgb,var(--gold) 35%,transparent);margin-top:-34px;position:relative}
+.save-big{font-family:var(--f-display);font-weight:700;font-size:clamp(2.2rem,9vw,3rem);line-height:1;color:var(--gold);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.save-sub{margin-top:6px;color:var(--ink)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-top:16px;padding-top:14px;border-top:1px solid color-mix(in srgb,var(--gold) 30%,transparent)}
+.stat .v{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:1.15rem;font-weight:500}
+.stat .k{font-size:.8rem;color:var(--muted)}
+.apy-note{font-size:.85rem;color:var(--muted);margin-top:12px;max-width:62ch}
+
+/* chart */
+.chart-box{overflow-x:auto}
+svg.chart{width:100%;height:auto;display:block;min-width:300px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:18px;height:0;border-top:2.5px solid var(--accent)}
+.legend i.base{border-top:2px dashed var(--muted)}
+.legend i.plan{border-top:2.5px dotted var(--plan)}
+
+/* forms */
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.field{display:grid;gap:4px;flex:1 1 140px;min-width:0}
+.field span{font-size:.8rem;color:var(--muted);font-weight:500}
+.field input,.field select{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:.55rem .65rem;width:100%}
+.field small{color:var(--muted);font-size:.75rem}
+.err{color:var(--danger);font-size:.85rem}
+.ok{color:var(--accent);font-size:.85rem}
+
+/* extras list */
+.extras{list-style:none;margin:14px 0 0;padding:0;display:grid}
+.extras li{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.extras .d{color:var(--muted);font-size:.85rem}
+.extras .n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.9rem}
+.extras .a{font-weight:500}
+.extras .x{border:0;background:none;color:var(--muted);padding:4px 6px;border-radius:6px}
+.extras .x:hover{color:var(--danger)}
+.empty{color:var(--muted);font-size:.9rem;margin-top:10px}
+.nudge{margin-top:12px;font-size:.9rem;background:var(--accent-soft);border-radius:8px;padding:.6rem .8rem}
+
+/* what-if */
+input[type=range]{width:100%;accent-color:var(--accent)}
+.whatif-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:12px}
+.whatif-out .v{font-family:var(--f-mono);font-size:1.1rem;font-variant-numeric:tabular-nums}
+
+/* schedule */
+details summary{cursor:pointer;font-weight:600}
+.table-box{overflow:auto;max-height:420px;margin-top:12px;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.82rem;min-width:560px}
+th,td{padding:6px 10px;text-align:right;white-space:nowrap}
+th{position:sticky;top:0;background:var(--surface);color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
+td:first-child,th:first-child,td:nth-child(2),th:nth-child(2){text-align:left}
+tr.past td{color:var(--muted)}
+tr.now td{background:var(--accent-soft);font-weight:600}
+td.ex{color:var(--accent)}
+
+.done{background:var(--accent-soft);border-color:var(--accent)}
+.meta-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.meta-list .v{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.confirm{margin-top:12px;padding:12px;border:1px solid var(--danger);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.foot{font-size:.78rem;color:var(--muted);text-align:center;max-width:60ch;margin:0 auto}
+
+/* editor overlay */
+.sheet{position:fixed;inset:0;background:color-mix(in srgb,#000 45%,transparent);z-index:20;display:grid;place-items:end center;padding-top:env(safe-area-inset-top,0px)}
+.sheet-in{background:var(--surface);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:20px max(18px,env(safe-area-inset-left,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-right,0px));display:grid;gap:14px}
+@media (min-width:700px){.sheet{place-items:center}.sheet-in{border-radius:16px}}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:.55rem 1rem;border-radius:999px;font-size:.88rem;z-index:30}
+@media (prefers-reduced-motion:no-preference){.track i{transition:width .6s ease}}
+</style>
+</head>
+<body>
+<div class="band">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2 4h4v12H2zM8 8h4v8H8zM14 12h4v4h-4z" fill="currentColor"/></svg>Payoff Ledger</div>
+      <div class="row" style="gap:8px;align-items:center">
+        <select id="loanPick" aria-label="Choose loan"></select>
+        <button class="btn" id="newLoanBtn" type="button">+ New loan</button>
+      </div>
+    </div>
+    <div class="hero">
+      <span class="label" id="heroLabel">Balance today</span>
+      <div class="bal" id="heroBal">$0</div>
+      <div class="hero-meta" id="heroMeta"></div>
+    </div>
+    <div class="track" aria-hidden="true"><i id="trackFill" style="width:0"></i></div>
+    <div class="track-legend"><span id="trackL"></span><span id="trackR"></span></div>
+    <div class="example" id="exampleBar" hidden>
+      <span>You're looking at an example loan. Nothing here is saved.</span>
+      <button type="button" id="exampleCreate">Add my loan</button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap" id="main">
+  <section class="card save" id="saveCard">
+    <span class="label">Interest you've erased with extra payments</span>
+    <div class="save-big" id="saveBig">$0</div>
+    <div class="save-sub" id="saveSub"></div>
+    <div class="stats">
+      <div class="stat"><div class="v" id="stSooner">0 mo</div><div class="k">Earlier payoff</div></div>
+      <div class="stat"><div class="v" id="stExtra">$0</div><div class="k">Extra principal paid</div></div>
+      <div class="stat"><div class="v" id="stApy">0%</div><div class="k">Guaranteed return (APY)</div></div>
+      <div class="stat"><div class="v" id="stToDate">$0</div><div class="k">Interest avoided so far</div></div>
+    </div>
+    <p class="apy-note" id="apyNote"></p>
+  </section>
+
+  <section class="card">
+    <header><h2>Balance burn-down</h2><span class="label" id="chartSpan"></span></header>
+    <div class="chart-box"><svg class="chart" id="chart" viewBox="0 0 640 260" role="img" aria-label="Loan balance over time"></svg></div>
+    <div class="legend">
+      <span><i></i>Your path</span>
+      <span><i class="plan"></i>Projected with your plan</span>
+      <span><i class="base"></i>Original schedule</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <header><h2>Log an extra payment</h2><span class="label">Principal only</span></header>
+    <form id="extraForm" class="row" novalidate>
+      <label class="field"><span>Date paid</span><input id="exDate" type="date" required></label>
+      <label class="field"><span>Amount</span><input id="exAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="250"></label>
+      <label class="field" style="flex-basis:180px"><span>Note (optional)</span><input id="exNote" type="text" maxlength="60" placeholder="Bonus, tax refund…"></label>
+      <button class="btn primary" type="submit">Add payment</button>
+    </form>
+    <div id="exMsg" aria-live="polite"></div>
+    <div class="nudge" id="nudge"></div>
+    <ul class="extras" id="extraList"></ul>
+  </section>
+
+  <section class="card">
+    <header><h2>What if I paid more each month?</h2><span class="label" id="planLabel"></span></header>
+    <label class="field"><span>Extra every month: <b class="num" id="wiVal">$0</b></span>
+      <input type="range" id="wi" min="0" max="1000" step="25" value="0"></label>
+    <div class="whatif-out">
+      <div><div class="v" id="wiDate">—</div><div class="label">Payoff date</div></div>
+      <div><div class="v" id="wiSave">$0</div><div class="label">More interest saved</div></div>
+      <div><div class="v" id="wiSooner">0 mo</div><div class="label">Sooner than now</div></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" type="button" id="savePlan">Make this my monthly plan</button>
+      <span id="planMsg" class="ok" aria-live="polite"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <details id="schedDetails">
+      <summary>Payment schedule</summary>
+      <div class="table-box"><table><thead><tr><th>#</th><th>Date</th><th>Payment</th><th>Extra</th><th>Interest</th><th>Principal</th><th>Balance</th></tr></thead><tbody id="schedBody"></tbody></table></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <header><h2>Loan details</h2>
+      <div class="row" style="gap:8px"><button class="btn" type="button" id="editBtn">Edit</button><button class="btn danger ghost" type="button" id="delBtn">Delete</button></div>
+    </header>
+    <div class="meta-list" id="metaList"></div>
+    <div class="confirm" id="delConfirm" hidden>
+      <span>Delete this loan and its payment history? This can't be undone.</span>
+      <button class="btn danger" type="button" id="delYes">Delete loan</button>
+      <button class="btn ghost" type="button" id="delNo">Keep it</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <header><h2>Backup</h2><span class="label">Saved on this device</span></header>
+    <p style="margin:0 0 12px;color:var(--muted);font-size:.9rem;max-width:62ch">Your loans live in this browser only. Download a backup now and then, and use it to move your data to a new phone or computer.</p>
+    <div class="row"><button class="btn" type="button" id="backupBtn">Download backup</button>
+      <label class="btn" style="display:inline-block">Restore from backup<input type="file" id="restoreIn" accept="application/json,.json" hidden></label>
+      <span id="backupMsg" aria-live="polite"></span></div>
+  </section>
+
+  <p class="foot" id="foot">Estimates assume each scheduled payment is made on its due date and interest accrues monthly at a fixed rate. Your lender's figures may differ by a few dollars.</p>
+</main>
+
+<div class="sheet" id="sheet" hidden>
+  <form class="sheet-in" id="loanForm" novalidate>
+    <h2 id="sheetTitle">New loan</h2>
+    <label class="field"><span>Name</span><input id="fName" type="text" maxlength="40" placeholder="Honda CR-V, Home mortgage…"></label>
+    <div class="row">
+      <label class="field"><span>Type</span><select id="fKind"><option>Car</option><option>Mortgage</option><option>Student</option><option>Personal</option><option>Other</option></select></label>
+      <label class="field"><span>Original amount</span><input id="fAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="32000"></label>
+    </div>
+    <div class="row">
+      <label class="field"><span>Interest rate (APR %)</span><input id="fRate" type="number" inputmode="decimal" min="0" step="0.001" placeholder="6.49"></label>
+      <label class="field"><span>Term</span><input id="fTerm" type="number" inputmode="numeric" min="1" step="1" placeholder="60"></label>
+      <label class="field" style="flex:0 1 110px"><span>&nbsp;</span><select id="fTermUnit"><option value="m">months</option><option value="y">years</option></select></label>
+    </div>
+    <div class="row">
+      <label class="field"><span>First payment date</span><input id="fFirst" type="date"></label>
+      <label class="field"><span>Monthly payment (principal + interest)</span><input id="fPmt" type="number" inputmode="decimal" min="0" step="0.01"><small id="fPmtHint">Leave blank to use the calculated amount.</small></label>
+    </div>
+    <small style="color:var(--muted)">For a mortgage, leave out escrow (taxes and insurance). Only principal and interest affect payoff.</small>
+    <div class="err" id="fErr" aria-live="polite"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn ghost" type="button" id="fCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="fSave">Save loan</button>
+    </div>
+  </form>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const money = (v, d=0) => (v<0?"-":"") + "$" + Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+const r2 = v => Math.round(v*100)/100;
+const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
+const pad = n => String(n).padStart(2,"0");
+const iso = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parseD = s => { const [y,m,d] = String(s).split("-").map(Number); return new Date(y,(m||1)-1,d||1); };
+const addMonths = (s, k) => { const d = parseD(s); const day = d.getDate(); const t = new Date(d.getFullYear(), d.getMonth()+k, 1);
+  const last = new Date(t.getFullYear(), t.getMonth()+1, 0).getDate(); t.setDate(Math.min(day,last)); return t; };
+const fmtMonth = d => d.toLocaleDateString("en-US",{month:"short",year:"numeric"});
+const fmtDay = d => d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+const plural = (n,w) => n+" "+w+(n===1?"":"s");
+const dur = m => { m=Math.max(0,Math.round(m)); const y=Math.floor(m/12), r=m%12; if(!y) return plural(r,"month"); return plural(y,"year")+(r?" "+plural(r,"month"):""); };
+const todayISO = () => iso(new Date());
+
+/* ---------- loan math ---------- */
+function calcPayment(P, aprPct, n){ const r=aprPct/1200; if(!r) return r2(P/n); return r2(P*r/(1-Math.pow(1+r,-n))); }
+function paymentOf(l){ return l.payment>0 ? l.payment : calcPayment(l.principal,l.rate,l.termMonths); }
+/* index of the scheduled payment an extra rides along with: the latest due date on or before it (minimum 1) */
+function extraIndex(l, dateStr){ const t=parseD(dateStr); let lo=1, hi=1300;
+  while(lo<hi){ const mid=(lo+hi+1)>>1; if(addMonths(l.firstPayment,mid-1)<=t) lo=mid; else hi=mid-1; } return lo; }
+function monthsElapsed(l, at){ const t=at||new Date(); if(parseD(l.firstPayment)>t) return 0; return extraIndex(l, iso(t)); }
+function extrasMap(l){ const m={}; for(const e of (l.extras||[])){ const k=extraIndex(l,e.date); m[k]=(m[k]||0)+Number(e.amount||0);} return m; }
+function sim(l, exMap, recur=0, recurFrom=Infinity){
+  const r=l.rate/1200, pmt=paymentOf(l); let B=l.principal, totI=0; const rows=[];
+  for(let m=1; B>0.004 && m<=1200; m++){
+    const i=r2(B*r); let prin=r2(pmt-i);
+    if(prin<=0 && !(exMap&&exMap[m]) && !(m>=recurFrom&&recur)) return {rows, totI, n:rows.length, stuck:true};
+    let ex=((exMap&&exMap[m])||0) + (m>=recurFrom?recur:0);
+    // final scheduled payment absorbs rounding residue, as lenders do
+    if(prin>=B-1 || (m>=l.termMonths && !l.payment)){ prin=B; ex=0; } else if(prin+ex>B-1){ ex=r2(B-prin); }
+    B=r2(B-prin-ex); totI+=i; rows.push({m,i,prin,ex,bal:B,pay:r2(i+prin)});
+  }
+  return {rows, totI:r2(totI), n:rows.length};
+}
+function balanceAfter(s, k, P){ if(k<=0) return P; const row=s.rows[Math.min(k,s.n)-1]; return row?row.bal:P; }
+function interestThrough(s, k){ let t=0; for(let j=0;j<Math.min(k,s.n);j++) t+=s.rows[j].i; return t; }
+function analyze(l, whatIf){
+  const now=monthsElapsed(l), ex=extrasMap(l);
+  const base=sim(l,null), locked=sim(l,ex);
+  const plan=sim(l,ex,l.planExtra||0,now+1);
+  const wi=sim(l,ex,whatIf,now+1);
+  const nudgeAmt=100, ex2={...ex}; const k=Math.max(1,now+1); ex2[k]=(ex2[k]||0)+nudgeAmt;
+  const nudge=sim(l,ex2);
+  const r=l.rate/1200;
+  return { now, base, locked, plan, wi,
+    balNow: balanceAfter(locked, now, l.principal),
+    saved: r2(base.totI-locked.totI), sooner: base.n-locked.n,
+    toDate: r2(interestThrough(base,now)-interestThrough(locked,now)),
+    extraTotal: r2((l.extras||[]).reduce((a,e)=>a+Number(e.amount||0),0)),
+    apy: (Math.pow(1+r,12)-1)*100,
+    nudgeSave: r2(locked.totI-nudge.totI), nudgeAmt,
+    payoffPlan: plan.n?addMonths(l.firstPayment,plan.n-1):null,
+    payoffBase: base.n?addMonths(l.firstPayment,base.n-1):null,
+    paidOff: locked.n>0 && locked.n<=now,
+  };
+}
+
+/* ---------- storage: this device (localStorage) with backup/restore ---------- */
+const LKEY="payoff-ledger-v1";
+let loans=[], sel=null;
+try{ const o=JSON.parse(localStorage.getItem(LKEY)||"null"); if(o){ loans=o.loans||[]; sel=o.sel||null; } }catch(e){}
+function persistLocal(){ try{ localStorage.setItem(LKEY, JSON.stringify({loans, sel})); }catch(e){ toast("Couldn't save on this device. Check that storage isn't blocked."); } }
+function saveLoan(l){ const i=loans.findIndex(x=>x.id===l.id); if(i>=0) loans[i]=l; else loans.push(l); persistLocal(); render(); }
+function removeLoan(id){ loans=loans.filter(x=>x.id!==id); if(sel===id) sel=loans[0]?.id||null; persistLocal(); render(); }
+try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+
+/* ---------- example (never saved) ---------- */
+function exampleLoan(){
+  const t=new Date(); const first=iso(new Date(t.getFullYear()-1, t.getMonth()-7, 5));
+  const at=k=>iso(addMonths(first,k));
+  return { id:"example", example:true, name:"Example: car loan", kind:"Car", principal:32000, rate:6.49, termMonths:60, firstPayment:first, payment:0, planExtra:100,
+    extras:[{id:"e1",date:at(2),amount:500,note:"Tax refund"},{id:"e2",date:at(6),amount:250,note:""},{id:"e3",date:at(10),amount:1500,note:"Year-end bonus"},{id:"e4",date:at(14),amount:300,note:""}], createdAt:0 };
+}
+let example=exampleLoan();
+const current = () => loans.find(l=>l.id===sel) || loans[0] || example;
+
+/* ---------- render ---------- */
+let wiValue=null;
+function render(){
+  const l=current(); const isEx=!!l.example;
+  // picker
+  const pick=$("loanPick"); pick.innerHTML="";
+  (loans.length?loans:[example]).forEach(x=>{ const o=document.createElement("option"); o.value=x.id; o.textContent=x.name; if(x.id===l.id) o.selected=true; pick.appendChild(o); });
+  pick.hidden = loans.length<2;
+  $("exampleBar").hidden=!isEx;
+  if(wiValue===null) wiValue=l.planExtra||0;
+  const a=analyze(l, wiValue);
+  const pmt=paymentOf(l);
+
+  // hero
+  if(a.base.stuck){ $("heroBal").textContent=money(l.principal); $("heroMeta").innerHTML="<span>The monthly payment doesn't cover the interest. Edit the loan to fix the payment.</span>"; return; }
+  $("heroLabel").textContent = a.paidOff ? "Paid off" : "Balance today";
+  $("heroBal").textContent = money(a.balNow, 2);
+  const paidPct = Math.min(100, (1 - a.balNow/l.principal)*100);
+  $("trackFill").style.width = paidPct.toFixed(1)+"%";
+  $("trackL").textContent = paidPct.toFixed(1)+"% paid off";
+  $("trackR").textContent = "of " + money(l.principal);
+  const remain = Math.max(0, a.plan.n - a.now);
+  $("heroMeta").innerHTML = a.paidOff
+    ? `<span>Paid off <b>${fmtMonth(addMonths(l.firstPayment,a.locked.n-1))}</b></span><span><b>${dur(a.sooner)}</b> ahead of schedule</span>`
+    : `<span>Debt-free <b>${a.payoffPlan?fmtMonth(a.payoffPlan):"—"}</b></span><span><b>${dur(remain)}</b> to go</span><span><b class="num">${money(pmt,2)}</b>/mo</span>`;
+
+  // savings
+  $("saveBig").textContent = money(a.saved);
+  $("saveSub").textContent = a.extraTotal>0
+    ? `Your ${money(a.extraTotal)} in extra payments cut ${money(a.saved)} of future interest. Each extra dollar has saved ${money(a.saved/a.extraTotal,2)} so far.`
+    : `Log an extra principal payment below and you'll see the interest it wipes out here.`;
+  $("stSooner").textContent = a.sooner>0 ? dur(a.sooner) : "0 months";
+  $("stExtra").textContent = money(a.extraTotal);
+  $("stApy").textContent = a.apy.toFixed(2)+"%";
+  $("stToDate").textContent = money(a.toDate);
+  $("apyNote").textContent = `Every extra dollar you put toward principal earns exactly your loan's rate, ${l.rate}% APR, which compounds to ${a.apy.toFixed(2)}% APY. It's risk-free and can't drop like a stock can. To beat it, a savings account or bond would need to pay ${a.apy.toFixed(2)}% after taxes.` + (l.kind==="Mortgage" ? " If you deduct mortgage interest on your taxes, your effective return is somewhat lower." : "");
+
+  // nudge + extras list
+  const nextDue = addMonths(l.firstPayment, Math.max(0,a.now));
+  $("nudge").hidden = a.paidOff || a.nudgeSave<=0;
+  $("nudge").innerHTML = `Paying an extra <b>${money(a.nudgeAmt)}</b> with your ${fmtDay(nextDue)} payment would save <b>${money(a.nudgeSave,2)}</b> in interest.` + (l.planExtra>0 ? ` <button class="btn" type="button" id="logPlan" style="margin-left:6px;padding:.25rem .6rem">Log my ${money(l.planExtra)} plan payment</button>` : "");
+  const lp=$("logPlan"); if(lp) lp.onclick=()=>addExtra(todayISO(), l.planExtra, "Monthly plan");
+  const list=$("extraList"); list.innerHTML="";
+  const ex=[...(l.extras||[])].sort((x,y)=>y.date.localeCompare(x.date));
+  if(!ex.length){ list.innerHTML=`<li class="empty" style="display:block;border:0">No extra payments yet.</li>`; }
+  ex.forEach(e=>{ const li=document.createElement("li");
+    li.innerHTML=`<span class="d num"></span><span class="n"></span><span class="a num"></span><button class="x" type="button" aria-label="Remove payment">✕</button>`;
+    li.children[0].textContent=fmtDay(parseD(e.date)); li.children[1].textContent=e.note||"Extra principal"; li.children[2].textContent=money(e.amount,2);
+    li.children[3].onclick=()=>{ const nl={...l, extras:l.extras.filter(z=>z.id!==e.id)}; commit(nl); toast("Payment removed"); };
+    list.appendChild(li); });
+  if(!$("exDate").value) $("exDate").value=todayISO();
+
+  // what-if
+  const wiMax=Math.max(500, Math.ceil(pmt/100)*100*2);
+  const s=$("wi"); s.max=wiMax; s.value=wiValue;
+  $("wiVal").textContent=money(wiValue);
+  const wiDate=a.wi.n?addMonths(l.firstPayment,a.wi.n-1):null;
+  $("wiDate").textContent= wiDate?fmtMonth(wiDate):"—";
+  $("wiSave").textContent= money(Math.max(0,a.locked.totI-a.wi.totI));
+  $("wiSooner").textContent= dur(a.locked.n-a.wi.n);
+  $("planLabel").textContent = l.planExtra>0 ? `Your plan: ${money(l.planExtra)}/mo` : "No plan set";
+  $("savePlan").disabled = (l.planExtra||0)===wiValue || a.paidOff;
+
+  drawChart(l,a);
+  // schedule
+  const tb=$("schedBody"); const rows=a.plan.rows; let html="";
+  for(const r of rows){ const cls=r.m<a.now?"past":(r.m===a.now?"now":"");
+    html+=`<tr class="${cls}"><td class="num">${r.m}</td><td>${fmtMonth(addMonths(l.firstPayment,r.m-1))}</td><td class="num">${money(r.pay,2)}</td><td class="num ex">${r.ex?money(r.ex,2):""}</td><td class="num">${money(r.i,2)}</td><td class="num">${money(r.prin,2)}</td><td class="num">${money(r.bal,2)}</td></tr>`; }
+  tb.innerHTML=html;
+  $("chartSpan").textContent = `Original payoff ${a.payoffBase?fmtMonth(a.payoffBase):"—"}`;
+
+  // details
+  const items=[["Type",l.kind],["Original amount",money(l.principal,2)],["Rate",l.rate+"% APR"],["Term",dur(l.termMonths)],["First payment",fmtDay(parseD(l.firstPayment))],["Monthly P&I",money(pmt,2)],["Total interest, original",money(a.base.totI)],["Total interest, now",money(a.plan.totI)]];
+  $("metaList").innerHTML=items.map(([k,v])=>`<div><div class="label">${k}</div><div class="v"></div></div>`).join("");
+  [...$("metaList").querySelectorAll(".v")].forEach((n,i)=>n.textContent=items[i][1]);
+  $("delBtn").hidden=isEx; $("editBtn").textContent=isEx?"Use as my loan":"Edit";
+}
+
+function drawChart(l,a){
+  const W=640,H=260,L=58,R=14,T=14,B=30, svg=$("chart");
+  const N=Math.max(a.base.n,1), P=l.principal;
+  const x=m=>L+(W-L-R)*m/N, y=v=>T+(H-T-B)*(1-v/P);
+  const path=(rows,from,to)=>{ let d=""; for(let m=from;m<=to;m++){ const v=m===0?P:(rows[m-1]?rows[m-1].bal:0); d+=(d?"L":"M")+x(m).toFixed(1)+","+y(v).toFixed(1);} return d; };
+  let g="";
+  // grid + y labels at 0, 25, 50, 75, 100%
+  for(const f of [0,.25,.5,.75,1]){ const yy=y(P*f); g+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/><text x="${L-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="var(--f-mono)">${shortMoney(P*f)}</text>`; }
+  // x labels: years
+  const yrs=Math.ceil(N/12); const step=yrs>20?5:yrs>8?2:1;
+  for(let k=0;k*12<=N;k+=step){ const xx=x(k*12); const d=addMonths(l.firstPayment,k*12); g+=`<text x="${xx}" y="${H-10}" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--f-mono)">${d.getFullYear()}</text>`; }
+  // baseline
+  g+=`<path d="${path(a.base.rows,0,a.base.n)}" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-dasharray="5 5"/>`;
+  const now=Math.min(a.now, a.locked.n);
+  // area under actual path to today
+  if(now>0){ g+=`<path d="${path(a.locked.rows,0,now)}L${x(now)},${y(0)}L${x(0)},${y(0)}Z" fill="var(--accent)" opacity=".12"/>`; }
+  // projected with plan
+  if(a.plan.n>now) g+=`<path d="${path(a.plan.rows,now,a.plan.n)}" fill="none" stroke="var(--plan)" stroke-width="2.5" stroke-dasharray="1 5" stroke-linecap="round"/>`;
+  if(now>0) g+=`<path d="${path(a.locked.rows,0,now)}" fill="none" stroke="var(--accent)" stroke-width="2.8" stroke-linejoin="round"/>`;
+  // today marker
+  const bx=x(now), by=y(now?a.locked.rows[now-1].bal:P);
+  g+=`<line x1="${bx}" x2="${bx}" y1="${T}" y2="${H-B}" stroke="var(--ink)" stroke-width="1" opacity=".35"/><circle cx="${bx}" cy="${by}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
+  const lx = bx > W-90 ? bx-8 : bx+8, anchor = bx > W-90 ? "end" : "start";
+  g+=`<text x="${lx}" y="${T+12}" font-size="11" fill="var(--ink)" text-anchor="${anchor}" font-family="var(--f-body)" font-weight="600">Today</text>`;
+  svg.innerHTML=g;
+}
+function shortMoney(v){ if(v>=1e6) return "$"+(v/1e6).toFixed(v%1e6?1:0)+"M"; if(v>=1e3) return "$"+Math.round(v/1e3)+"k"; return "$"+Math.round(v); }
+
+/* ---------- actions ---------- */
+function commit(l){ if(l.example){ example=l; render(); return; } saveLoan(l); }
+function addExtra(date, amount, note){
+  const l=current(); const nl={...l, extras:[...(l.extras||[]), {id:uid(), date, amount:r2(amount), note:note||""}]};
+  const before=analyze(l,0).saved; commit(nl); const after=analyze(nl,0).saved;
+  toast(`Logged ${money(amount,2)}. That saves ${money(after-before,2)} in interest.`);
+}
+$("extraForm").addEventListener("submit", e=>{ e.preventDefault(); const l=current();
+  const d=$("exDate").value, amt=Number($("exAmt").value); const m=$("exMsg");
+  if(!d){ m.className="err"; m.textContent="Choose the date you made the payment."; return; }
+  if(!(amt>0)){ m.className="err"; m.textContent="Enter an amount greater than $0."; return; }
+  if(parseD(d) < parseD(l.firstPayment) && false){}
+  const a=analyze(l,0); if(amt>a.balNow+0.01 && !a.paidOff){ m.className="err"; m.textContent=`That's more than your balance of ${money(a.balNow,2)}.`; return; }
+  m.textContent=""; addExtra(d, amt, $("exNote").value.trim()); $("exAmt").value=""; $("exNote").value="";
+});
+$("wi").addEventListener("input", e=>{ wiValue=Number(e.target.value); render(); });
+$("savePlan").addEventListener("click", ()=>{ const l=current(); commit({...l, planExtra:wiValue}); $("planMsg").textContent = wiValue? `Plan saved: ${money(wiValue)} extra each month.` : "Plan cleared."; setTimeout(()=>$("planMsg").textContent="",3000); });
+$("loanPick").addEventListener("change", e=>{ sel=e.target.value; wiValue=null; persistLocal(); render(); });
+$("delBtn").addEventListener("click", ()=>{ $("delConfirm").hidden=false; });
+$("delNo").addEventListener("click", ()=>{ $("delConfirm").hidden=true; });
+$("delYes").addEventListener("click", ()=>{ $("delConfirm").hidden=true; const l=current(); wiValue=null; removeLoan(l.id); toast("Loan deleted"); });
+
+/* editor */
+let editing=null;
+function openEditor(l){
+  editing=l&&!l.example?l:null; const src=l||{};
+  $("sheetTitle").textContent = editing?"Edit loan":"New loan";
+  $("fName").value = editing?src.name:""; $("fKind").value = src.kind||"Car";
+  $("fAmt").value = editing?src.principal:""; $("fRate").value = editing?src.rate:"";
+  const t=src.termMonths||""; const yrs = editing && t%12===0 && t>=120;
+  $("fTerm").value = editing?(yrs?t/12:t):""; $("fTermUnit").value = yrs?"y":"m";
+  $("fFirst").value = editing?src.firstPayment:iso(addMonths(todayISO(),1));
+  $("fPmt").value = editing && src.payment ? src.payment : "";
+  $("fErr").textContent=""; updatePmtHint(); $("sheet").hidden=false; $("fName").focus();
+}
+function formTerm(){ const n=Number($("fTerm").value); return $("fTermUnit").value==="y"? n*12 : n; }
+function updatePmtHint(){ const P=Number($("fAmt").value), r=Number($("fRate").value), n=formTerm();
+  $("fPmt").placeholder = (P>0&&n>0&&r>=0) ? calcPayment(P,r,n).toFixed(2) : "";
+  $("fPmtHint").textContent = (P>0&&n>0) ? `Calculated: ${money(calcPayment(P,r||0,n),2)}. Enter your lender's figure if it differs.` : "Leave blank to use the calculated amount."; }
+["fAmt","fRate","fTerm","fTermUnit"].forEach(id=>$(id).addEventListener("input",updatePmtHint));
+$("fKind").addEventListener("change", ()=>{ if(!$("fTerm").value && $("fKind").value==="Mortgage"){ $("fTerm").value=30; $("fTermUnit").value="y"; updatePmtHint(); } });
+$("newLoanBtn").addEventListener("click", ()=>openEditor(null));
+$("exampleCreate").addEventListener("click", ()=>openEditor(null));
+$("editBtn").addEventListener("click", ()=>{ const l=current(); openEditor(l.example?null:l); });
+$("fCancel").addEventListener("click", ()=>{ $("sheet").hidden=true; });
+$("sheet").addEventListener("click", e=>{ if(e.target.id==="sheet") $("sheet").hidden=true; });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") $("sheet").hidden=true; });
+$("loanForm").addEventListener("submit", e=>{ e.preventDefault();
+  const name=$("fName").value.trim(), P=Number($("fAmt").value), rate=Number($("fRate").value), n=formTerm(), first=$("fFirst").value, pIn=Number($("fPmt").value)||0;
+  const err=m=>{ $("fErr").textContent=m; };
+  if(!name) return err("Give the loan a name, like “Car loan” or “Home mortgage”.");
+  if(!(P>0)) return err("Enter the original loan amount.");
+  if(!($("fRate").value!=="" && rate>=0 && rate<100)) return err("Enter the interest rate as a percent, for example 6.49.");
+  if(!(n>=1 && n<=600 && Number.isInteger(n))) return err("Enter the term as a whole number of months or years (up to 50 years).");
+  if(!first) return err("Enter the date your first payment was (or will be) due.");
+  if(pIn && pIn <= r2(P*rate/1200)) return err(`A ${money(pIn,2)} payment doesn't cover the first month's interest of ${money(P*rate/1200,2)}.`);
+  const l = editing ? {...editing} : {id:uid(), extras:[], planExtra:0, createdAt:Date.now()};
+  Object.assign(l,{name, kind:$("fKind").value, principal:r2(P), rate, termMonths:n, firstPayment:first, payment:pIn?r2(pIn):0});
+  delete l.example;
+  sel=l.id; wiValue=null; $("sheet").hidden=true; saveLoan(l); toast(editing?"Loan updated":"Loan added");
+});
+
+let tt; function toast(m){ const t=$("toast"); t.textContent=m; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,3200); }
+
+$("backupBtn").addEventListener("click", ()=>{
+  if(!loans.length){ toast("Add a loan first. There's nothing to back up yet."); return; }
+  const blob=new Blob([JSON.stringify({app:"payoff-ledger",version:1,exported:new Date().toISOString(),loans},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="payoff-ledger-backup-"+todayISO()+".json";
+  document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1000);
+});
+$("restoreIn").addEventListener("change", async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return; const m=$("backupMsg");
+  try{ const o=JSON.parse(await f.text()); const inc=(o&&Array.isArray(o.loans))?o.loans:null;
+    if(!inc||inc.some(l=>!l.id||!(l.principal>0)||!l.firstPayment)) throw 0;
+    for(const l of inc){ const i=loans.findIndex(x=>x.id===l.id); if(i>=0) loans[i]=l; else loans.push(l); }
+    sel=inc[0].id; wiValue=null; persistLocal(); render(); m.className="ok"; m.textContent="Restored "+inc.length+(inc.length===1?" loan.":" loans.");
+  }catch(err){ m.className="err"; m.textContent="That file isn't a Payoff Ledger backup."; }
+});
+window.__payoff = {calcPayment, sim, analyze, extraIndex};
+render();
+if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
+})();
+</script>
+</body>
+</html>
