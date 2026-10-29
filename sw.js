@@ -1,5 +1,5 @@
 // Offline support: app shell is cached; pages are network-first so updates arrive when online.
-const CACHE = "payoff-ledger-v1";
+const CACHE = "payoff-ledger-v2";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-180.png"];
 
 self.addEventListener("install", e => {
